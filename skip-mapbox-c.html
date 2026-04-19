@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Skip定点查询系统</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .main-wrapper {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 20px;
+      animation: slideUp 0.6s ease-out;
+    }
+    
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .sidebar {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      padding: 25px;
+      height: fit-content;
+      position: sticky;
+      top: 20px;
+    }
+    
+    .sidebar h3 {
+      color: #374151;
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 20px;
+      text-align: center;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .history-list { list-style: none; }
+    
+    .history-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .history-item:hover {
+      background: #e2e8f0;
+      transform: translateX(5px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .history-item-content {
+      padding: 12px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .history-address {
+      font-size: 14px;
+      color: #374151;
+      font-weight: 500;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    
+    .history-delete {
+      color: #ef4444;
+      font-size: 16px;
+      padding: 4px;
+      border-radius: 4px;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+    
+    .history-item:hover .history-delete { opacity: 1; }
+    .history-delete:hover { background: #fee2e2; }
+    
+    .clear-history {
+      width: 100%;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 15px;
+    }
+    
+    .clear-history:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+    
+    .empty-history {
+      text-align: center;
+      color: #9ca3af;
+      font-size: 14px;
+      padding: 20px 10px;
+      font-style: italic;
+    }
+    
+    .container { 
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .header::before {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+      animation: shimmer 3s infinite;
+    }
+    
+    @keyframes shimmer {
+      0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+      100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+    }
+    
+    .header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .header .subtitle {
+      font-size: 1rem;
+      opacity: 0.9;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .content { padding: 40px; }
+    
+    .input-section {
+      background: #f8f9ff;
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+      border: 1px solid #e3e8ff;
+    }
+    
+    .input-group {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .input-wrapper {
+      flex: 1;
+      min-width: 300px;
+      position: relative;
+    }
+    
+    input {
+      width: 100%;
+      font-size: 16px;
+      padding: 16px 20px;
+      border: 2px solid #e1e5e9;
+      border-radius: 12px;
+      background: white;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+    
+    input:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .search-btn {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 16px 32px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+      min-width: 120px;
+    }
+    
+    .search-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(118, 75, 162, 0.3);
+    }
+    
+    .search-btn:active { transform: translateY(0); }
+    
+    .search-btn::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    .search-btn:hover::before { left: 100%; }
+    
+    .feature-note {
+      color: #6b7280;
+      font-size: 14px;
+      text-align: center;
+      margin-top: 15px;
+      padding: 12px;
+      background: rgba(107, 114, 128, 0.1);
+      border-radius: 8px;
+      border-left: 4px solid #764ba2;
+    }
+    
+    .progress-container {
+      background: #f3f4f6;
+      border-radius: 12px;
+      height: 24px;
+      margin: 20px 0;
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: none;
+      position: relative;
+    }
+    
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      width: 0;
+      transition: width 0.4s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .progress-bar::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; bottom: 0; right: 0;
+      background: linear-gradient(45deg, transparent 33%, rgba(255,255,255,0.3) 33%, rgba(255,255,255,0.3) 66%, transparent 66%);
+      background-size: 30px 30px;
+      animation: progressStripes 1s linear infinite;
+    }
+    
+    @keyframes progressStripes {
+      0% { background-position: 0 0; }
+      100% { background-position: 30px 0; }
+    }
+    
+    .progress-text {
+      margin-top: 8px;
+      color: #374151;
+      font-size: 14px;
+      text-align: center;
+      font-weight: 500;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #764ba2;
+      font-size: 16px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid #e3f2fd;
+      border-top: 3px solid #764ba2;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .error {
+      background: #fee2e2;
+      color: #dc2626;
+      padding: 16px 20px;
+      border-radius: 12px;
+      border-left: 4px solid #dc2626;
+      margin: 20px 0;
+      font-weight: 500;
+    }
+    
+    .results {
+      margin-top: 30px;
+      animation: fadeIn 0.5s ease-out;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    
+    th {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      color: #374151;
+      font-weight: 600;
+      padding: 18px 16px;
+      text-align: left;
+      border-bottom: 2px solid #e5e7eb;
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+    
+    td {
+      padding: 16px;
+      border-bottom: 1px solid #f3f4f6;
+      transition: background-color 0.2s ease;
+    }
+    
+    tr:hover td { background-color: #f8fafc; }
+    tr:last-child td { border-bottom: none; }
+    
+    .nav-link {
+      color: #764ba2;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 2px solid #764ba2;
+      transition: all 0.3s ease;
+      display: inline-block;
+      font-size: 14px;
+    }
+    
+    .nav-link:hover {
+      background: #764ba2;
+      color: white;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(118, 75, 162, 0.3);
+    }
+
+    @media (max-width: 1024px) {
+      .main-wrapper {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        max-width: 800px;
+      }
+      .sidebar { position: static; order: 2; }
+    }
+    
+    @media (max-width: 768px) {
+      body { padding: 10px; }
+      .content { padding: 20px; }
+      .input-group { flex-direction: column; }
+      .input-wrapper { min-width: auto; }
+      .header h1 { font-size: 1.8rem; }
+      table { font-size: 14px; }
+      th, td { padding: 12px 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-wrapper">
+    <div class="sidebar">
+      <h3>📋 查询历史</h3>
+      <ul id="historyList" class="history-list">
+        <li class="empty-history">暂无查询记录</li>
+      </ul>
+      <button id="clearHistory" class="clear-history" style="display:none;">🗑️ 清空历史</button>
+    </div>
+    
+    <div class="container">
+      <div class="header">
+        <h1>顶流广告技术有限公司</h1>
+        <div class="subtitle">🎯Skip定点查询</div>
+      </div>
+      
+      <div class="content">
+        <div class="input-section">
+          <div class="input-group">
+            <div class="input-wrapper">
+              <input id="addressInput" type="text" placeholder="示例：123 Main St, Los Angeles, CA" />
+            </div>
+            <button id="btnSearch" class="search-btn">开始查询</button>
+          </div>
+          <div class="feature-note">
+            🎯 Skip定点查询 - Powered By Dingliuads LLC. 
+          </div>
+        </div>
+        
+        <div id="loading" class="loading" style="display:none;"><span>正在解析地址...</span></div>
+        
+        <div class="progress-container" id="progressContainer">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-text" id="progressText"></div>
+        
+        <div id="error" class="error" style="display:none;"></div>
+        <div id="results" class="results"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ==========================================
+// 1. Mapbox 核心配置
+// ==========================================
+const MAPBOX_ACCESS_TOKEN = "pk.eyJ1Ijoic2t0a2luZ2VyIiwiYSI6ImNtaDQ1OGptYjBlZDIycXB4OTcydmRvajgifQ.GX7MFcXwILyJ7KWOk1WxHg";
+let skipCitiesData = null;
+
+const CHUNK_SIZE = 24; 
+
+// ==========================================
+// 2. 历史记录管理
+// ==========================================
+const HISTORY_KEY = 'search_history_mapbox';
+const MAX_HISTORY = 10;
+
+class SearchHistory {
+  constructor() {
+    this.history = this.loadHistory();
+    this.renderHistory();
+  }
+  
+  loadHistory() {
+    try {
+      const saved = localStorage.getItem(HISTORY_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  
+  saveHistory() {
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(this.history));
+  }
+  
+  addHistory(address) {
+    if (!address || !address.trim()) return;
+    this.history = this.history.filter(item => item !== address);
+    this.history.unshift(address);
+    if (this.history.length > MAX_HISTORY) {
+      this.history = this.history.slice(0, MAX_HISTORY);
+    }
+    this.saveHistory();
+    this.renderHistory();
+  }
+  
+  removeHistory(address) {
+    this.history = this.history.filter(item => item !== address);
+    this.saveHistory();
+    this.renderHistory();
+  }
+  
+  clearHistory() {
+    this.history = [];
+    this.saveHistory();
+    this.renderHistory();
+  }
+  
+  renderHistory() {
+    const historyList = document.getElementById('historyList');
+    const clearBtn = document.getElementById('clearHistory');
+    
+    if (this.history.length === 0) {
+      historyList.innerHTML = '<li class="empty-history">暂无查询记录</li>';
+      clearBtn.style.display = 'none';
+    } else {
+      clearBtn.style.display = 'block';
+      historyList.innerHTML = this.history.map(address => `
+        <li class="history-item" onclick="searchHistory.selectHistory('${address.replace(/'/g, "\\'")}')">
+          <div class="history-item-content">
+            <span class="history-address" title="${address}">${address}</span>
+            <span class="history-delete" onclick="event.stopPropagation(); searchHistory.removeHistory('${address.replace(/'/g, "\\'")}')">✕</span>
+          </div>
+        </li>
+      `).join('');
+    }
+  }
+  
+  selectHistory(address) {
+    document.getElementById('addressInput').value = address;
+    document.getElementById('btnSearch').click();
+  }
+}
+
+const searchHistory = new SearchHistory();
+document.getElementById('clearHistory').onclick = () => {
+  if (confirm('确定要清空所有查询历史吗？')) {
+    searchHistory.clearHistory();
+  }
+};
+
+// ==========================================
+// 3. Mapbox 核心功能与自动重试机制
+// ==========================================
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function loadSkipCitiesData() {
+    if (skipCitiesData) return skipCitiesData;
+    const response = await fetch('./skipCities.json');
+    if (!response.ok) throw new Error(`加载 skipCities.json 失败! 状态: ${response.status}`);
+    skipCitiesData = await response.json();
+    return skipCitiesData;
+}
+
+async function geocodeAddress(address) {
+    const encodedAddress = encodeURIComponent(address);
+    const apiUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodedAddress}.json?access_token=${MAPBOX_ACCESS_TOKEN}&country=US&limit=1&types=address,postcode,place,region`;
+
+    const response = await fetch(apiUrl);
+    if (!response.ok) throw new Error(`Mapbox Geocoding 错误: ${response.statusText}`);
+    
+    const data = await response.json();
+    if (!data.features || data.features.length === 0) {
+        throw new Error("找不到该地址，请检查输入是否正确。");
+    }
+
+    const feature = data.features[0];
+    const position = {
+        lng: feature.center[0],
+        lat: feature.center[1]
+    };
+
+    let stateName = null;
+    if (feature.context) {
+        const stateObj = feature.context.find(ctx => ctx.id.startsWith('region'));
+        if (stateObj) stateName = stateObj.text;
+    }
+    if (!stateName && feature.id.startsWith('region')) {
+        stateName = feature.text;
+    }
+
+    return { address: { state: stateName }, position: position };
+}
+
+async function getMatrixData(origin, destinations) {
+    const safeDestinations = [...destinations];
+    if (safeDestinations.length === 1) safeDestinations.push(safeDestinations[0]); 
+
+    const originCoord = `${origin.lng},${origin.lat}`;
+    const destCoords = safeDestinations.map(d => {
+        const lng = d.lng !== undefined ? d.lng : d.longitude;
+        const lat = d.lat !== undefined ? d.lat : d.latitude;
+        return `${lng},${lat}`;
+    });
+    
+    const allCoords = [originCoord, ...destCoords].join(';');
+    const destinationIndices = safeDestinations.map((_, i) => i + 1).join(';');
+
+    const apiUrl = new URL(`https://api.mapbox.com/directions-matrix/v1/mapbox/driving/${allCoords}`);
+    apiUrl.search = new URLSearchParams({
+        access_token: MAPBOX_ACCESS_TOKEN,
+        sources: '0', 
+        destinations: destinationIndices, 
+        annotations: 'duration,distance' 
+    }).toString();
+
+    // 内置重试机制：自动拦截 429 (Too Many Requests) 错误并重试，彻底避免数据丢失
+    let response;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+        response = await fetch(apiUrl);
+        if (response.ok) break;
+        
+        if (response.status === 429) {
+            await delay(1000 * attempt); // 指数退避，防止持续并发触发封控
+            continue;
+        }
+        
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`Mapbox Matrix 错误: ${errorData.message || response.statusText}`);
+    }
+
+    if (!response || !response.ok) {
+         throw new Error("API 请求失败，已达到最大重试次数，请稍后再试。");
+    }
+
+    const data = await response.json();
+    if (data.code !== 'Ok' || !data.distances || !data.durations) {
+        throw new Error(`Matrix 数据格式错误: ${data.message || '未知'}`);
+    }
+
+    return {
+        matrix: { distances: data.distances, travelTimes: data.durations }
+    };
+}
+
+function processMatrixResults(cityNames, matrixData) {
+    const results = [];
+    const distances = matrixData.distances[0];
+    const travelTimes = matrixData.travelTimes[0];
+
+    for (let i = 0; i < cityNames.length; i++) {
+        const distanceVal = distances[i];
+        const timeVal = travelTimes[i];
+        if (distanceVal !== null && timeVal !== null && distanceVal !== undefined) {
+            results.push({
+                city: cityNames[i],
+                distance: distanceVal, 
+                time: timeVal     
+            });
+        }
+    }
+    return results;
+}
+
+function formatDuration(totalSeconds) {
+    if (totalSeconds < 60) return "少于 1 分钟";
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    let parts = [];
+    if (hours > 0) parts.push(`${hours} 小时`);
+    if (minutes > 0) parts.push(`${minutes} 分钟`);
+    return parts.join(' ');
+}
+
+// ==========================================
+// 4. 主控逻辑 (全并发 + Promise.all)
+// ==========================================
+const btn = document.getElementById('btnSearch');
+const loadingEl = document.getElementById('loading');
+const loadingText = loadingEl.querySelector('span');
+const errorEl = document.getElementById('error');
+const resultsEl = document.getElementById('results');
+const progressContainer = document.getElementById('progressContainer');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+const addressInput = document.getElementById('addressInput');
+
+function updateStatus(msg, isError = false) {
+    if (isError) {
+        loadingEl.style.display = 'none';
+        progressContainer.style.display = 'none';
+        progressText.textContent = '';
+        errorEl.textContent = `❌ ${msg}`;
+        errorEl.style.display = 'block';
+    } else {
+        loadingText.textContent = msg;
+    }
+}
+
+btn.onclick = async function() {
+    const address = addressInput.value.trim();
+    if (!address) {
+        updateStatus("请输入详细地址", true);
+        return;
+    }
+
+    // 重置 UI
+    errorEl.style.display = 'none';
+    resultsEl.innerHTML = '';
+    loadingEl.style.display = 'flex';
+    progressContainer.style.display = 'none';
+    progressText.textContent = ''; // 清空文字，只保留进度条显示
+    progressBar.style.width = '0%';
+    
+    searchHistory.addHistory(address);
+
+    try {
+        updateStatus("正在加载系统城市数据...");
+        await loadSkipCitiesData();
+
+        updateStatus("正在解析定位目标地址...");
+        const geocodedResult = await geocodeAddress(address);
+        const stateName = geocodedResult.address.state;
+        const originPosition = geocodedResult.position;
+
+        if (!stateName) throw new Error("无法从此地址中解析出州 (State) 信息。");
+
+        const stateData = Object.values(skipCitiesData).find(
+            state => state.state_name && state.state_name.toLowerCase() === stateName.toLowerCase()
+        );
+
+        if (!stateData) throw new Error(`您所在的州 "${stateName}" 暂不在服务覆盖区内。`);
+
+        const allDestinations = Object.keys(stateData.cities).map(city => ({
+            name: city,
+            coord: stateData.cities[city] 
+        }));
+
+        if (allDestinations.length === 0) throw new Error(`"${stateName}" 州没有找到支持的节点城市。`);
+
+        // 开始并发矩阵测算
+        loadingEl.style.display = 'none';
+        progressContainer.style.display = 'block';
+        
+        const chunkPromises = [];
+        let completedCount = 0;
+
+        for (let i = 0; i < allDestinations.length; i += CHUNK_SIZE) {
+            const chunk = allDestinations.slice(i, i + CHUNK_SIZE);
+            const chunkCities = chunk.map(d => d.name);
+            const chunkCoords = chunk.map(d => d.coord);
+            
+            // 封装并发 Promise
+            const p = (async () => {
+                const matrixResponse = await getMatrixData(originPosition, chunkCoords);
+                const chunkResults = processMatrixResults(chunkCities, matrixResponse.matrix);
+                
+                // 成功后仅更新进度条，不显示任何文字提示
+                completedCount += chunk.length;
+                const percent = Math.round((completedCount / allDestinations.length) * 100);
+                progressBar.style.width = percent + "%";
+                
+                return chunkResults;
+            })();
+            
+            chunkPromises.push(p);
+        }
+        
+        // 统一等待所有请求完美执行完毕
+        const allChunkedResults = await Promise.all(chunkPromises);
+        const allResults = allChunkedResults.flat();
+        
+        if (allResults.length === 0) throw new Error("未找到可通行的驾车路线。");
+        
+        allResults.sort((a, b) => a.distance - b.distance);
+
+        let html = `<table>
+          <thead>
+            <tr>
+              <th>节点城市</th><th>行驶距离</th><th>预计耗时</th><th>操作指令</th>
+            </tr>
+          </thead>
+          <tbody>
+          ${allResults.map(r => `
+            <tr>
+              <td><strong>${r.city}</strong></td>
+              <td>${(r.distance / 1000).toFixed(1)} km</td>
+              <td>${formatDuration(r.time)}</td>
+              <td>
+                <a class="nav-link" href="https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(address)}&destination=${encodeURIComponent(r.city + ', ' + stateName)}" target="_blank">📍 开启导航</a>
+              </td>
+            </tr>
+          `).join('')}
+          </tbody>
+        </table>`;
+
+        resultsEl.innerHTML = html;
+        
+        // 所有流程结束后按照要求进行文字提示
+        progressText.textContent = "查询完成";
+
+    } catch (error) {
+        console.error("查询异常:", error);
+        updateStatus(error.message, true);
+    }
+};
+
+addressInput.addEventListener('keypress', (event) => {
+    if (event.key === 'Enter') btn.click();
+});
+</script>
+</body>
+</html>
